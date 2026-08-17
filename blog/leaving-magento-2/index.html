@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How to leave Magento 2 without breaking a single order total</title>
-<meta name="description" content="A replatforming case study: exact-cent parity on 5,730 replayed production orders, 11,172 preserved URLs, mobile PageSpeed from 46 to 82, and the migration bugs a rehearsal caught before they shipped.">
+<title>How to leave Magento 2 without losing orders, rankings, or integrations</title>
+<meta name="description" content="A replatforming case study: mobile PageSpeed from 46 to 82, 11,172 preserved URLs, a CRM sync that cannot lose events, and exact-cent parity on 5,730 replayed production orders.">
 <link rel="canonical" href="https://nikashio.github.io/blog/leaving-magento-2/">
-<meta property="og:title" content="How to leave Magento 2 without breaking a single order total">
-<meta property="og:description" content="A replatforming case study written by the engineer who did it: money-path parity, SEO preservation, integrations, and what went wrong.">
+<meta property="og:title" content="How to leave Magento 2 without losing orders, rankings, or integrations">
+<meta property="og:description" content="A replatforming case study: performance, SEO preservation, integrations, cost, and what went wrong along the way.">
 <meta property="og:type" content="article">
 <meta property="og:image" content="https://nikashio.github.io/blog/leaving-magento-2/img/pagespeed.png">
 <link rel="stylesheet" href="/style.css">
@@ -22,22 +22,21 @@
 </header>
 <main>
 <article>
-<h1>How to leave Magento 2 without breaking a single order total</h1>
+<h1>How to leave Magento 2 without losing orders, rankings, or integrations</h1>
 <p class="meta">2026-08 &middot; Nikoloz Shiomghvdlishvili</p>
 
-<p><em>A case study of replatforming a live store, written by the engineer who did it. The merchant is a US retailer of technical hardware selling to both businesses and consumers. Names are omitted at their request; every number below comes from the project's commit history, test suites, and migration runbooks.</em></p>
+<p><em>A case study of moving a live store off Magento 2. The merchant is a US retailer of technical hardware selling to both businesses and consumers. Names are omitted at their request; every number below comes from the project's commit history, test suites, and migration runbooks.</em></p>
 
 <div class="ledger">
   <p class="caption">The results, up front</p>
   <dl>
-    <div class="row"><dt>Production orders replayed to exact-cent parity</dt><dd>5,730 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Cents of pricing drift tolerated</dt><dd>$0.00 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Historical orders carried over</dt><dd>60,898 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Product images migrated byte-exact</dt><dd>1,625 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Magento URLs preserved as permanent redirects</dt><dd>11,172 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Mobile PageSpeed score, before &rarr; after</dt><dd>46 &rarr; 82 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Total Blocking Time, before &rarr; after</dt><dd>2,390 ms &rarr; 90 ms <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Magento URLs preserved as permanent redirects</dt><dd>11,172 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Historical orders carried over</dt><dd>60,898 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Product images migrated byte-exact</dt><dd>1,625 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Admin surfaces store staff run without a developer</dt><dd>18 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Pricing drift across 5,730 replayed production orders</dt><dd>$0.00 <span class="tick">&check;</span></dd></div>
   </dl>
 </div>
 
@@ -208,7 +207,7 @@
 <li><strong>Rehearse the data migration against a real dump and audit it field by field.</strong> Every one of our four rehearsal catches would have been a silent production defect.</li>
 </ol>
 
-<p>I am the engineer behind this project and I take on a small number of replatforming and integration engagements. If your store is weighing a Magento exit, <a href="mailto:nikashio42@gmail.com">I am happy to compare notes</a>.</p>
+<p>I take on a small number of replatforming and integration engagements. If your store is weighing a Magento exit, <a href="mailto:nikashio42@gmail.com">I am happy to compare notes</a>.</p>
 
 </article>
 </main>
