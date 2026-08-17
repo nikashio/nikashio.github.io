@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to leave Magento 2 without breaking a single order total</title>
+<meta name="description" content="A replatforming case study: exact-cent parity on 5,730 replayed production orders, 11,172 preserved URLs, mobile PageSpeed from 46 to 82, and the migration bugs a rehearsal caught before they shipped.">
+<link rel="canonical" href="https://nikashio.github.io/blog/leaving-magento-2/">
+<meta property="og:title" content="How to leave Magento 2 without breaking a single order total">
+<meta property="og:description" content="A replatforming case study written by the engineer who did it: money-path parity, SEO preservation, integrations, and what went wrong.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://nikashio.github.io/blog/leaving-magento-2/img/pagespeed.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="/">nikoloz<span>.</span></a>
+  <nav class="site">
+    <a href="https://github.com/nikashio">GitHub</a>
+    <a href="mailto:nikashio42@gmail.com">Email</a>
+  </nav>
+</header>
+<main>
+<article>
+<h1>How to leave Magento 2 without breaking a single order total</h1>
+<p class="meta">2026-08 &middot; Nikoloz Shiomghvdlishvili</p>
+
+<p><em>A case study of replatforming a live store, written by the engineer who did it. The merchant is a US retailer of technical hardware selling to both businesses and consumers. Names are omitted at their request; every number below comes from the project's commit history, test suites, and migration runbooks.</em></p>
+
+<div class="ledger">
+  <p class="caption">The results, up front</p>
+  <dl>
+    <div class="row"><dt>Production orders replayed to exact-cent parity</dt><dd>5,730 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Cents of pricing drift tolerated</dt><dd>$0.00 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Historical orders carried over</dt><dd>60,898 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Product images migrated byte-exact</dt><dd>1,625 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Magento URLs preserved as permanent redirects</dt><dd>11,172 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Mobile PageSpeed score, before &rarr; after</dt><dd>46 &rarr; 82 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Total Blocking Time, before &rarr; after</dt><dd>2,390 ms &rarr; 90 ms <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Admin surfaces store staff run without a developer</dt><dd>18 <span class="tick">&check;</span></dd></div>
+  </dl>
+</div>
+
+<p>The CRM, payments, tax, and warehouse integrations all kept working through cutover, most syncing within seconds of an event. One mid-size server and one managed Postgres database replaced a fleet of app servers, five Redis nodes, and a search cluster. The rest of this post explains how, including the parts that went wrong.</p>
+
+<h2>Why the merchant left Magento</h2>
+
+<p>The store had run on Magento 2 for years. It worked, but every change was slow and expensive, the hosting estate had grown into a sprawl of services nobody wanted to touch, and the front end was losing the Core Web Vitals race that increasingly decides search rankings. The business also runs a serious B2B motion (sales reps, quotes, purchase orders, credit terms, tax-exempt customers) that Magento handled through a pile of extensions and manual workarounds.</p>
+
+<p>The decision was not "Magento is bad." The decision was that the cost of standing still had exceeded the cost of moving.</p>
+
+<p>The replacement is a custom storefront: Next.js and TypeScript, PostgreSQL, Meilisearch for catalog search, HubSpot as the CRM system of record for the sales team, Authorize.net for payments, and TaxJar for sales tax. One codebase, one database, one server.</p>
+
+<h2>Fear one: "will my numbers still be right?"</h2>
+
+<p>This is the fear that stops most replatforms, and it deserves to. Pricing bugs are silent. A store that renders beautifully while quietly computing discounts wrong is worse than a slow store.</p>
+
+<p>We treated pricing as a formal contract, not a feature:</p>
+
+<p><strong>Twelve money laws.</strong> The pricing engine's guarantees are written down as twelve executable invariants: the order subtotal must equal the sum of its line totals exactly, the grand total must equal subtotal minus discount plus shipping plus tax, discounts can never exceed the subtotal or push a line below zero, every stored amount is a non-negative value with exactly two decimals, and so on. These are not comments in a wiki. They are code, and they run in four places: property-based tests, a frozen order corpus, integration tests against the real database, and a reconciliation job in production.</p>
+
+<p><strong>Integer cents, never floats.</strong> All money math happens in whole cents, parsed from strings. Discount allocation across line items uses largest-remainder apportionment, so a $10 discount spread over three lines never loses or invents a cent.</p>
+
+<p><strong>A 5,730-order replay harness.</strong> Before cutover, we extracted thousands of real historical orders and froze their financial outcomes as a baseline. Every test run rebuilds each order's cart from the order's own data and pushes it through the current pricing engine, then compares subtotal, discount, tax base, grand total, and every line total against the frozen baseline. The tolerance is zero: exact-cent string equality on 5,730 orders. The corpus is stratified on purpose: it includes every post-launch order, every order with both shipping and tax, all 2,730 discounted orders (the only ones that exercise discount apportionment), and orders up to 37 line items.</p>
+
+<p><strong>We proved the harness works by breaking the engine on purpose.</strong> A safety net you have never seen catch anything might be decorative. So we mutated the engine deliberately: shifting a discount clamp by a single cent flagged 2,728 of the 5,730 orders and named every order and field that moved. Removing one clamp, losing one leftover cent in allocation, and mis-padding a formatted amount were each injected as bugs, and each was caught by a different layer.</p>
+
+<p><strong>The contract is protected from its own developers.</strong> CI runs a tamper guard that executes the money test suite and asserts a minimum passing count, so nobody can quietly exclude a test file and stay green (that exact bypass happened once before the guard existed, which is why it exists). Any change to the pricing engine, the laws, or the frozen corpus requires an explicit human sign-off marker in the commit history, and the guard runs the base branch's own copy of itself so a pull request cannot edit the guard to approve its own changes.</p>
+
+<p>Did all this ceremony ever pay off? Yes, dramatically. A data re-import once inserted a second, identical set of line items into 60,898 historical orders. No money moved and nothing looked wrong in the admin. The first law (subtotal equals the sum of line totals) flagged it because every affected order's lines suddenly summed to exactly twice the subtotal. The repair script that fixed roughly 349,000 duplicate rows was itself dry-run by default, backed up every table first, and was gated on an exact parity check before and after.</p>
+
+<h2>Fear two: "will Google forget my store exists?"</h2>
+
+<p>A replatform is a mass URL migration whether you plan it or not. We planned it.</p>
+
+<ul>
+<li><strong>11,020 exact-path redirects plus 152 pattern redirects</strong> were extracted from Magento's rewrite tables and legacy htaccess rules, and are served as permanent (301) redirects from middleware, before any caching layer can interfere. A subtle trap we hit: issuing redirects from inside a statically cached page can bake a broken redirect into the cache. Redirects must live upstream of the cache, and now they do.</li>
+<li><strong>The sitemap is generated, not maintained.</strong> It builds from live products and categories, excludes anything unreachable or disabled, and filters out any URL the middleware would redirect, so search engines are never sent somewhere that bounces.</li>
+<li><strong>Structured data everywhere it matters</strong>: Organization, Product with offers, and breadcrumb schemas emitted from typed helpers rather than hand-edited JSON.</li>
+<li><strong>Discontinued products get temporary (307) redirects</strong> to their category or successor, driven from a database field store staff can edit, because a product that comes back should get its URL back.</li>
+</ul>
+
+<p>On performance, the wins came from architecture rather than tricks. Nearly the whole shop renders as static pages regenerated in the background, so most visitors are served from cache in milliseconds. Third-party marketing scripts (tag manager, CRM chat and tracking, roughly 550KB of JavaScript) load only after the visitor's first interaction, taking them out of the critical path entirely. A regression test suite pins each of these architectural rules in CI, because we re-broke several of them during development and got tired of rediscovering the fixes.</p>
+
+<figure>
+  <div class="chart-row">
+    <div>
+      <p class="chart-title">Mobile PageSpeed score</p>
+      <svg class="chart" viewBox="0 0 300 190" role="img" aria-label="Bar chart: mobile PageSpeed score rose from 46 on Magento 2 to 82 on Next.js">
+        <defs><clipPath id="base1"><rect x="0" y="0" width="300" height="150"/></clipPath></defs>
+        <line class="grid" x1="20" y1="20" x2="290" y2="20"/>
+        <text class="tick-lbl" x="16" y="24" text-anchor="end">100</text>
+        <g clip-path="url(#base1)">
+          <rect class="bar-before" x="55" y="90" width="64" height="64" rx="3"/>
+          <rect class="bar-after" x="175" y="43" width="64" height="111" rx="3"/>
+        </g>
+        <line class="axis" x1="20" y1="150" x2="290" y2="150"/>
+        <text class="val" x="87" y="82" text-anchor="middle">46</text>
+        <text class="val" x="207" y="35" text-anchor="middle">82</text>
+        <text class="lbl" x="87" y="170" text-anchor="middle">Magento 2</text>
+        <text class="lbl" x="207" y="170" text-anchor="middle">Next.js</text>
+      </svg>
+    </div>
+    <div>
+      <p class="chart-title">Total Blocking Time, ms (lower is better)</p>
+      <svg class="chart" viewBox="0 0 300 190" role="img" aria-label="Bar chart: Total Blocking Time fell from 2,390 milliseconds on Magento 2 to 90 milliseconds on Next.js">
+        <defs><clipPath id="base2"><rect x="0" y="0" width="300" height="150"/></clipPath></defs>
+        <line class="grid" x1="20" y1="20" x2="290" y2="20"/>
+        <text class="tick-lbl" x="16" y="24" text-anchor="end">2,400</text>
+        <g clip-path="url(#base2)">
+          <rect class="bar-before" x="55" y="21" width="64" height="133" rx="3"/>
+          <rect class="bar-after" x="175" y="145" width="64" height="9" rx="3"/>
+        </g>
+        <line class="axis" x1="20" y1="150" x2="290" y2="150"/>
+        <text class="val" x="87" y="13" text-anchor="middle">2,390</text>
+        <text class="val" x="207" y="137" text-anchor="middle">90</text>
+        <text class="lbl" x="87" y="170" text-anchor="middle">Magento 2</text>
+        <text class="lbl" x="207" y="170" text-anchor="middle">Next.js</text>
+      </svg>
+    </div>
+  </div>
+  <figcaption>Lighthouse mobile, measured on the production build before and after the migration. Outlined bars are the Magento 2 baseline; solid bars are the replacement storefront.</figcaption>
+</figure>
+
+<figure>
+  <!-- Raw img by design: this whole site is plain static HTML with no framework, so there is no next/image pipeline. -->
+  <img src="img/pagespeed.png" alt="PageSpeed Insights report: Core Web Vitals assessment passed, with LCP 0.8 seconds, INP 65 milliseconds, CLS 0, and scores of 100 for Performance, Accessibility, Best Practices, and SEO" loading="lazy" decoding="async" width="1400" height="1023">
+  <figcaption>A recent PageSpeed Insights run for the storefront: the Core Web Vitals field assessment (real Chrome users, 28-day window) passes on every metric, and the lab audit scores 100 across the board.</figcaption>
+</figure>
+
+<h2>Fear three: "my store is really a hub of integrations"</h2>
+
+<p>So was this one. The integrations were the hardest and most valuable part of the project.</p>
+
+<p><strong>CRM sync that cannot silently lose events.</strong> Every order, invoice, shipment, refund, and status change that must reach the CRM is written to an outbox table in the same database transaction as the business event itself. If the order saved, the sync record exists; there is no gap where the store believes in an order the CRM never heard about. A worker drains the outbox continuously (delivery is usually seconds, worst case about a minute), retries with backoff for hours if the CRM is down, collapses duplicates through idempotency keys, and pages a human only when something is genuinely stuck rather than merely retrying. Permanently failed events land in a queue an admin can replay after the root cause is fixed.</p>
+
+<figure>
+  <svg class="diagram" viewBox="0 0 680 200" role="img" aria-label="Diagram of the transactional outbox: an order commit writes an outbox row in the same database transaction, a sync worker delivers it to the CRM within about sixty seconds, retries with backoff for up to four hours, and permanently failed events go to an admin replay queue">
+    <defs>
+      <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="arrowhead" d="M0,0 L8,4 L0,8 z"/></marker>
+      <marker id="ahs" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="arrowhead-soft" d="M0,0 L8,4 L0,8 z"/></marker>
+    </defs>
+    <rect class="box" x="10" y="70" width="140" height="60" rx="6"/>
+    <text class="node" x="80" y="96" text-anchor="middle">Order commit</text>
+    <text class="note" x="80" y="114" text-anchor="middle">app database</text>
+
+    <line class="flow" x1="150" y1="100" x2="198" y2="100" marker-end="url(#ah)"/>
+    <text class="note" x="175" y="88" text-anchor="middle">atomic</text>
+
+    <rect class="box box-accent" x="205" y="70" width="150" height="60" rx="6"/>
+    <text class="node" x="280" y="96" text-anchor="middle">Outbox row</text>
+    <text class="note" x="280" y="114" text-anchor="middle">same transaction</text>
+
+    <line class="flow" x1="355" y1="100" x2="403" y2="100" marker-end="url(#ah)"/>
+
+    <rect class="box" x="410" y="70" width="140" height="60" rx="6"/>
+    <text class="node" x="480" y="96" text-anchor="middle">Sync worker</text>
+    <text class="note" x="480" y="114" text-anchor="middle">idempotency keys</text>
+
+    <line class="flow" x1="550" y1="100" x2="598" y2="100" marker-end="url(#ah)"/>
+    <text class="note" x="574" y="88" text-anchor="middle">&le; 60 s</text>
+
+    <rect class="box" x="605" y="70" width="65" height="60" rx="6"/>
+    <text class="node" x="637" y="105" text-anchor="middle">CRM</text>
+
+    <path class="flow-soft" d="M 480 130 C 480 168, 280 168, 280 134" marker-end="url(#ahs)"/>
+    <text class="note" x="380" y="185" text-anchor="middle">on failure: backoff retry for up to 4 h, then an admin replay queue</text>
+
+    <text class="note" x="280" y="40" text-anchor="middle">if the order saved, the sync record exists</text>
+    <line class="flow-soft" x1="280" y1="48" x2="280" y2="63" marker-end="url(#ahs)"/>
+  </svg>
+  <figcaption>The transactional outbox. The CRM can be down for hours without a single event being lost, and replays can never double-send thanks to idempotency keys.</figcaption>
+</figure>
+
+<p><strong>Quotes and B2B checkout.</strong> Sales reps build quotes in the CRM; customers pay against them through the storefront. The store recomputes all money server-side from the quote's source data instead of trusting whatever the checkout page displays, and a quote that has been ordered once cannot be charged twice. This code path has its own war story: an ambiguous discount field in the CRM once priced a $40,000 quote at $0.00. The fix derives the discount from the quote total itself rather than trusting the ambiguous field, and that class of bug is now structurally impossible.</p>
+
+<p><strong>Credit terms enforced by the server.</strong> Approved B2B customers can check out on purchase orders. The credit limit check sums all open exposure (unpaid invoices, in-flight orders) at order time, in the database, and refuses the order if the new total would exceed the limit. Approval status expires and must be revalidated on a schedule.</p>
+
+<p><strong>Tax handled like the liability it is.</strong> Real-time calculation across 29 nexus states, every transaction filed for reporting, refunds filed as refund transactions so the ledger reconciles. Tax-exempt customers upload their certificates through a self-service portal; staff review and approve them with the covered states, and approval cascades to every account on the same company email domain, present and future, while free-mail domains are deliberately excluded from the cascade.</p>
+
+<p><strong>Warehouse and payments.</strong> Paid orders push to the warehouse system automatically, shipment and tracking updates flow back through webhooks plus a polling backstop, and a reconciliation job runs every half hour specifically to catch the nightmare scenario of a customer charged for an order the warehouse never received (a real incident, once, caught and fixed). Payment handling covers capture, authorization-only flows, voids, refunds, saved cards, and the payment gateway's fraud review queue, where held orders are routed to staff instead of vanishing.</p>
+
+<h2>Fear four: "who runs this thing after launch?"</h2>
+
+<p>The store's staff do. The admin panel covers 18 surfaces backed by 75 internal API endpoints: products, categories, CMS content blocks, order lifecycle management, cancellations with guardrails (an order with settled money cannot be casually cancelled), full and partial and even tax-only refunds, credit terms, partner and tax-exemption approvals, and a sync observability screen where staff can see and replay any integration event. Day-to-day merchandising and operations require no developer at all.</p>
+
+<p>On the engineering side, nine scheduled jobs are monitored not just for "did it run" but for "did it run on time and finish within its expected window," errors flow to an alerting system with an acknowledgement workflow so nothing gets fired into a channel and ignored, and the deploy process is a pull request merge, never a person typing on a server.</p>
+
+<h2>What went wrong (a partial and honest list)</h2>
+
+<p>A full go-live rehearsal against a production data dump caught four bugs that would each have shipped silently: a character-encoding flag missing from the export corrupted every trademark and degree symbol (2,001 fields); a database client quirk turned every empty tier price into the literal text "NULL," which would have imported 1,618 group prices as $0.00; naive datetime parsing shifted every scheduled sale window four hours early; and a hand-rolled CSV parser mangled 57 category names. None reached production, which is the entire argument for rehearsing a migration like a fire drill instead of hoping.</p>
+
+<p>After launch, the mistakes kept teaching. The duplicated line-item incident above came from a re-import months after cutover. A caching subtlety turned uncached category pages into errors for a day until the rendering rules were pinned down in tests. The lesson we kept re-learning: every incident became an executable guard, so the same mistake cannot happen twice.</p>
+
+<h2>The economics</h2>
+
+<p>The old platform ran on a fleet: multiple application servers behind a load balancer, five Redis nodes, a dedicated search cluster, several content delivery configurations, and a database provisioned for a peak that never came. The replacement runs on one mid-size cloud server (application, search, and cache together) and one modest managed Postgres instance, with capacity to spare because almost all traffic is served from static cache. The infrastructure bill dropped to a fraction of what the old estate cost, and, just as importantly, the surface area a human has to understand shrank to something one person can hold in their head.</p>
+
+<p>The build itself was done by one engineer working with a fleet of AI coding agents under heavy adversarial review: every money-path change was independently re-reviewed, and the mutation tests above were part of proving the review process itself worked. That model, one senior engineer with strong verification infrastructure instead of a large team, is a big part of why the economics worked.</p>
+
+<h2>If you are planning a Magento exit</h2>
+
+<p>Three things mattered more than everything else combined:</p>
+
+<ol>
+<li><strong>Freeze your money behavior before you touch anything.</strong> Replay real historical orders through the new engine to exact-cent equality. If you cannot prove the new platform prices your actual orders identically, you are not migrating, you are gambling.</li>
+<li><strong>Treat URLs as inventory.</strong> Extract every rewrite Magento has accumulated over the years and serve them as permanent redirects from day one, upstream of your cache.</li>
+<li><strong>Rehearse the data migration against a real dump and audit it field by field.</strong> Every one of our four rehearsal catches would have been a silent production defect.</li>
+</ol>
+
+<p>I am the engineer behind this project and I take on a small number of replatforming and integration engagements. If your store is weighing a Magento exit, <a href="mailto:nikashio42@gmail.com">I am happy to compare notes</a>.</p>
+
+</article>
+</main>
+<footer class="site">
+  <p><a href="/">&larr; Home</a> &middot; <a href="https://github.com/nikashio">github.com/nikashio</a></p>
+  <p class="note">static html &middot; zero javascript &middot; zero webfonts &middot; one round trip</p>
+</footer>
+</body>
+</html>
