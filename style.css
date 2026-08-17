@@ -369,3 +369,60 @@ svg.diagram .arrowhead-soft { fill: var(--ink-3); }
   .ledger dd { font-size: 0.88rem; }
   table { display: block; overflow-x: auto; }
 }
+
+/* ---------- lighthouse rings ---------- */
+
+.rings-block { margin: 1.8rem 0; }
+
+.strip-caption {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 0.9rem;
+}
+
+.rings { display: flex; gap: 1.75rem; flex-wrap: wrap; }
+
+.ring { text-align: center; }
+
+.ring svg { width: 68px; height: 68px; display: block; margin: 0 auto 0.45rem; }
+
+.ring .disc { fill: var(--green-soft); stroke: var(--green); stroke-width: 4; }
+
+.ring .score {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 19px;
+  fill: var(--ink);
+}
+
+.ring-label { font-family: var(--sans); font-size: 0.74rem; color: var(--ink-2); }
+
+/* ---------- section eyebrows & pull quotes ---------- */
+
+.eyebrow {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 0.4rem;
+}
+
+.pull {
+  border-left: 3px solid var(--green);
+  margin: 2rem 0;
+  padding: 0.2rem 0 0.2rem 1.2rem;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 1.35rem;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.pull .num { font-size: 1em; }

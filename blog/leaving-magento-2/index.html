@@ -30,6 +30,7 @@
 <div class="ledger">
   <p class="caption">The results, up front</p>
   <dl>
+    <div class="row"><dt>Desktop PageSpeed today (Performance / Accessibility / Best Practices / SEO)</dt><dd>100 &middot; 100 &middot; 100 &middot; 100 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Mobile PageSpeed score, before &rarr; after</dt><dd>46 &rarr; 82 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Total Blocking Time, before &rarr; after</dt><dd>2,390 ms &rarr; 90 ms <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Magento URLs preserved as permanent redirects</dt><dd>11,172 <span class="tick">&check;</span></dd></div>
@@ -50,7 +51,7 @@
 
 <p>The replacement is a custom storefront: Next.js and TypeScript, PostgreSQL, Meilisearch for catalog search, HubSpot as the CRM system of record for the sales team, Authorize.net for payments, and TaxJar for sales tax. One codebase, one database, one server.</p>
 
-<h2>Fear one: "will my numbers still be right?"</h2>
+<h2><span class="eyebrow">Merchant fear 01 / 04</span>"Will my numbers still be right?"</h2>
 
 <p>This is the fear that stops most replatforms, and it deserves to. Pricing bugs are silent. A store that renders beautifully while quietly computing discounts wrong is worse than a slow store.</p>
 
@@ -66,9 +67,11 @@
 
 <p><strong>The contract is protected from its own developers.</strong> CI runs a tamper guard that executes the money test suite and asserts a minimum passing count, so nobody can quietly exclude a test file and stay green (that exact bypass happened once before the guard existed, which is why it exists). Any change to the pricing engine, the laws, or the frozen corpus requires an explicit human sign-off marker in the commit history, and the guard runs the base branch's own copy of itself so a pull request cannot edit the guard to approve its own changes.</p>
 
+<aside class="pull">Shifting one discount clamp by a single cent flagged 2,728 of 5,730 replayed orders, each one named.</aside>
+
 <p>Did all this ceremony ever pay off? Yes, dramatically. A data re-import once inserted a second, identical set of line items into 60,898 historical orders. No money moved and nothing looked wrong in the admin. The first law (subtotal equals the sum of line totals) flagged it because every affected order's lines suddenly summed to exactly twice the subtotal. The repair script that fixed roughly 349,000 duplicate rows was itself dry-run by default, backed up every table first, and was gated on an exact parity check before and after.</p>
 
-<h2>Fear two: "will Google forget my store exists?"</h2>
+<h2><span class="eyebrow">Merchant fear 02 / 04</span>"Will Google forget my store exists?"</h2>
 
 <p>A replatform is a mass URL migration whether you plan it or not. We planned it.</p>
 
@@ -79,7 +82,7 @@
 <li><strong>Discontinued products get temporary (307) redirects</strong> to their category or successor, driven from a database field store staff can edit, because a product that comes back should get its URL back.</li>
 </ul>
 
-<p>On performance, the wins came from architecture rather than tricks. Nearly the whole shop renders as static pages regenerated in the background, so most visitors are served from cache in milliseconds. Third-party marketing scripts (tag manager, CRM chat and tracking, roughly 550KB of JavaScript) load only after the visitor's first interaction, taking them out of the critical path entirely. A regression test suite pins each of these architectural rules in CI, because we re-broke several of them during development and got tired of rediscovering the fixes.</p>
+<p>On performance, the wins came from architecture rather than tricks. Nearly the whole shop renders as static pages regenerated in the background, so most visitors are served from cache in milliseconds. Third-party marketing scripts (tag manager, CRM chat and tracking, roughly 550KB of JavaScript) load only after the visitor's first interaction, taking them out of the critical path entirely. Today the storefront scores a perfect 100 on Performance, Accessibility, Best Practices, and SEO in desktop PageSpeed, and its Core Web Vitals field assessment (real Chrome users over 28 days) passes on every metric. A regression test suite pins each of these architectural rules in CI, because we re-broke several of them during development and got tired of rediscovering the fixes.</p>
 
 <figure>
   <div class="chart-row">
@@ -124,10 +127,10 @@
 <figure>
   <!-- Raw img by design: this whole site is plain static HTML with no framework, so there is no next/image pipeline. -->
   <img src="img/pagespeed.png" alt="PageSpeed Insights report: Core Web Vitals assessment passed, with LCP 0.8 seconds, INP 65 milliseconds, CLS 0, and scores of 100 for Performance, Accessibility, Best Practices, and SEO" loading="lazy" decoding="async" width="1400" height="1023">
-  <figcaption>A recent PageSpeed Insights run for the storefront: the Core Web Vitals field assessment (real Chrome users, 28-day window) passes on every metric, and the lab audit scores 100 across the board.</figcaption>
+  <figcaption>A recent desktop PageSpeed Insights run for the storefront: the Core Web Vitals field assessment (real Chrome users, 28-day window) passes on every metric, and the lab audit scores 100 in every category.</figcaption>
 </figure>
 
-<h2>Fear three: "my store is really a hub of integrations"</h2>
+<h2><span class="eyebrow">Merchant fear 03 / 04</span>"My store is really a hub of integrations"</h2>
 
 <p>So was this one. The integrations were the hardest and most valuable part of the project.</p>
 
@@ -179,7 +182,7 @@
 
 <p><strong>Warehouse and payments.</strong> Paid orders push to the warehouse system automatically, shipment and tracking updates flow back through webhooks plus a polling backstop, and a reconciliation job runs every half hour specifically to catch the nightmare scenario of a customer charged for an order the warehouse never received (a real incident, once, caught and fixed). Payment handling covers capture, authorization-only flows, voids, refunds, saved cards, and the payment gateway's fraud review queue, where held orders are routed to staff instead of vanishing.</p>
 
-<h2>Fear four: "who runs this thing after launch?"</h2>
+<h2><span class="eyebrow">Merchant fear 04 / 04</span>"Who runs this thing after launch?"</h2>
 
 <p>The store's staff do. The admin panel covers 18 surfaces backed by 75 internal API endpoints: products, categories, CMS content blocks, order lifecycle management, cancellations with guardrails (an order with settled money cannot be casually cancelled), full and partial and even tax-only refunds, credit terms, partner and tax-exemption approvals, and a sync observability screen where staff can see and replay any integration event. Day-to-day merchandising and operations require no developer at all.</p>
 
