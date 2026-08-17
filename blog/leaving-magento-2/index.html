@@ -36,6 +36,7 @@
     <div class="row"><dt>Magento URLs preserved as permanent redirects</dt><dd>11,172 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Historical orders carried over</dt><dd>60,898 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Product images migrated byte-exact</dt><dd>1,625 <span class="tick">&check;</span></dd></div>
+    <div class="row"><dt>Content routes rebuilt as typed React components</dt><dd>458 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Admin surfaces store staff run without a developer</dt><dd>18 <span class="tick">&check;</span></dd></div>
     <div class="row"><dt>Pricing drift across 5,730 replayed production orders</dt><dd>$0.00 <span class="tick">&check;</span></dd></div>
   </dl>
@@ -51,7 +52,7 @@
 
 <p>The replacement is a custom storefront: Next.js and TypeScript, PostgreSQL, Meilisearch for catalog search, HubSpot as the CRM system of record for the sales team, Authorize.net for payments, and TaxJar for sales tax. One codebase, one database, one server.</p>
 
-<h2><span class="eyebrow">Merchant fear 01 / 04</span>"Will my numbers still be right?"</h2>
+<h2><span class="eyebrow">Merchant fear 01 / 05</span>"Will my numbers still be right?"</h2>
 
 <p>This is the fear that stops most replatforms, and it deserves to. Pricing bugs are silent. A store that renders beautifully while quietly computing discounts wrong is worse than a slow store.</p>
 
@@ -71,7 +72,7 @@
 
 <p>Did all this ceremony ever pay off? Yes, dramatically. A data re-import once inserted a second, identical set of line items into 60,898 historical orders. No money moved and nothing looked wrong in the admin. The first law (subtotal equals the sum of line totals) flagged it because every affected order's lines suddenly summed to exactly twice the subtotal. The repair script that fixed roughly 349,000 duplicate rows was itself dry-run by default, backed up every table first, and was gated on an exact parity check before and after.</p>
 
-<h2><span class="eyebrow">Merchant fear 02 / 04</span>"Will Google forget my store exists?"</h2>
+<h2><span class="eyebrow">Merchant fear 02 / 05</span>"Will Google forget my store exists?"</h2>
 
 <p>A replatform is a mass URL migration whether you plan it or not. We planned it.</p>
 
@@ -130,7 +131,15 @@
   <figcaption>A recent desktop PageSpeed Insights run for the storefront: the Core Web Vitals field assessment (real Chrome users, 28-day window) passes on every metric, and the lab audit scores 100 in every category.</figcaption>
 </figure>
 
-<h2><span class="eyebrow">Merchant fear 03 / 04</span>"My store is really a hub of integrations"</h2>
+<h2><span class="eyebrow">Merchant fear 03 / 05</span>"What happens to ten years of content pages?"</h2>
+
+<p>A mature Magento store is also a content library: landing pages, buying guides, service pages, and category descriptions, accumulated over years in a WYSIWYG page builder as tangled HTML that only renders correctly inside the old theme. Copy-pasting it into a new platform degrades it. Leaving it behind throws away the long tail of pages that quietly bring in organic traffic.</p>
+
+<p>We took a third path and leaned on AI coding agents to do it at scale: 458 content routes, plus the category descriptions, were rebuilt page by page as typed React components. The pipeline captures the original production page, an agent rebuilds it as typed components, and a mechanical parity gate diffs the rebuild against the original section by section until nothing is missing, reordered, or misplaced. A human reviews each page for taste; the gate guarantees completeness, because "looks about right" is not a standard you can hold across 458 pages.</p>
+
+<p>The rebuilt pages look the same as the originals or better: same content and layout, but served as static HTML with modern image loading, consistent typography, and no page builder left to rot. And because every page is now real, typed code, a missing image or a broken component is a build failure the day it happens, not a surprise a customer finds six months later.</p>
+
+<h2><span class="eyebrow">Merchant fear 04 / 05</span>"My store is really a hub of integrations"</h2>
 
 <p>So was this one. The integrations were the hardest and most valuable part of the project.</p>
 
@@ -182,7 +191,7 @@
 
 <p><strong>Warehouse and payments.</strong> Paid orders push to the warehouse system automatically, shipment and tracking updates flow back through webhooks plus a polling backstop, and a reconciliation job runs every half hour specifically to catch the nightmare scenario of a customer charged for an order the warehouse never received (a real incident, once, caught and fixed). Payment handling covers capture, authorization-only flows, voids, refunds, saved cards, and the payment gateway's fraud review queue, where held orders are routed to staff instead of vanishing.</p>
 
-<h2><span class="eyebrow">Merchant fear 04 / 04</span>"Who runs this thing after launch?"</h2>
+<h2><span class="eyebrow">Merchant fear 05 / 05</span>"Who runs this thing after launch?"</h2>
 
 <p>The store's staff do. The admin panel covers 18 surfaces backed by 75 internal API endpoints: products, categories, CMS content blocks, order lifecycle management, cancellations with guardrails (an order with settled money cannot be casually cancelled), full and partial and even tax-only refunds, credit terms, partner and tax-exemption approvals, and a sync observability screen where staff can see and replay any integration event. Day-to-day merchandising and operations require no developer at all.</p>
 
