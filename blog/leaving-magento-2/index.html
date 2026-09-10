@@ -1,152 +1,75 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How to leave Magento 2 without losing orders, rankings, or integrations</title>
-<meta name="description" content="A replatforming case study: mobile PageSpeed from 46 to 82, 11,172 preserved URLs, a CRM sync that cannot lose events, and exact-cent parity on 5,730 replayed production orders.">
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leaving Magento 2: simpler maintenance, faster changes, lower costs | Nika Shiomghvdlishvili</title>
+<meta name="description" content="How I replaced SCW’s Magento store with a simpler commerce platform: approximately 95% lower infrastructure cost, custom HubSpot quoting, reliable integrations, and pricing regression tests.">
 <link rel="canonical" href="https://nikashio.github.io/blog/leaving-magento-2/">
-<meta property="og:title" content="How to leave Magento 2 without losing orders, rankings, or integrations">
-<meta property="og:description" content="A replatforming case study: performance, SEO preservation, integrations, cost, and what went wrong along the way.">
-<meta property="og:type" content="article">
-<meta property="og:image" content="https://nikashio.github.io/blog/leaving-magento-2/img/pagespeed.png">
-<link rel="stylesheet" href="/style.css">
-</head>
-<body>
-<header class="site">
-  <a class="brand" href="/">nikoloz<span>.</span></a>
-  <nav class="site">
-    <a href="https://github.com/nikashio">GitHub</a>
-    <a href="mailto:nikashio42@gmail.com">Email</a>
-  </nav>
-</header>
-<main>
-<article>
-<h1>How to leave Magento 2 without losing orders, rankings, or integrations</h1>
-<p class="meta">2026-08 &middot; Nikoloz Shiomghvdlishvili</p>
-
-<p><em>A case study of moving a live store off Magento 2. The merchant is a US retailer of technical hardware selling to both businesses and consumers. Names are omitted at their request; every number below comes from the project's commit history, test suites, and migration runbooks.</em></p>
-
-<div class="ledger">
-  <p class="caption">The results, up front</p>
-  <dl>
-    <div class="row"><dt>Desktop PageSpeed today (Performance / Accessibility / Best Practices / SEO)</dt><dd>100 &middot; 100 &middot; 100 &middot; 100 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Mobile PageSpeed score, before &rarr; after</dt><dd>46 &rarr; 82 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Total Blocking Time, before &rarr; after</dt><dd>2,390 ms &rarr; 90 ms <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Magento URLs preserved as permanent redirects</dt><dd>11,172 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Historical orders carried over</dt><dd>60,898 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Product images migrated byte-exact</dt><dd>1,625 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Content routes rebuilt as typed React components</dt><dd>458 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Admin surfaces store staff run without a developer</dt><dd>18 <span class="tick">&check;</span></dd></div>
-    <div class="row"><dt>Pricing drift across 5,730 replayed production orders</dt><dd>$0.00 <span class="tick">&check;</span></dd></div>
-  </dl>
+<meta property="og:title" content="Leaving Magento 2: a simpler platform that is faster to improve">
+<meta property="og:description" content="The business case and technical decisions behind SCW’s commerce replacement: cost, speed, HubSpot, B2B workflows, and safe change.">
+<meta property="og:type" content="article"><meta property="og:url" content="https://nikashio.github.io/blog/leaving-magento-2/">
+<meta property="og:image" content="https://nikashio.github.io/blog/leaving-magento-2/img/pagespeed-desktop-2026-09-10.png">
+<meta property="og:image:alt" content="SCW desktop PageSpeed report with all four lab scores at 100 and Core Web Vitals passed">
+<link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="article.css">
+</head><body class="case-study">
+<header class="site"><a class="brand" href="/">nikoloz<span>.</span></a><nav class="site" aria-label="Main"><a href="https://github.com/nikashio">GitHub</a><a href="mailto:nikashio42@gmail.com">Email</a></nav></header>
+<main><article>
+<p class="eyebrow">Commerce architecture / SCW case study</p>
+<h1>Leaving Magento 2: simpler to maintain, faster to improve.</h1>
+<p class="meta">By Nikoloz Shiomghvdlishvili · Published August 2026 · Updated September 10, 2026</p>
+<p class="lede">The most valuable result was a platform the business could change more easily. Lower hosting costs and faster pages were measurable wins. The larger goal was to stop making every new feature a negotiation with the existing stack.</p>
+<p>I owned the application replacement and AWS work for <a href="https://www.getscw.com/">Security Camera Warehouse</a>, a retailer serving consumers and business buyers. The project connected the storefront, customer history, B2B purchasing, HubSpot sales tools, payments, tax, fulfillment, and the workflows around them.</p>
+<div class="result-grid" aria-label="Project results">
+<div><strong>~95%</strong><span>lower production infrastructure cost</span></div>
+<div><strong>184,785</strong><span>historical orders migrated</span></div>
+<div><strong>89 / 100</strong><span>mobile / desktop PageSpeed performance</span></div>
+<div><strong>~500</strong><span>CMS pages rebuilt as typed React</span></div>
 </div>
-
-<p>The CRM, payments, tax, and warehouse integrations all kept working through cutover, most syncing within seconds of an event. One mid-size server and one managed Postgres database replaced a fleet of app servers, five Redis nodes, and a search cluster. The rest of this post explains how, including the parts that went wrong.</p>
-
-<h2>Why the merchant left Magento</h2>
-
-<p>The store had run on Magento 2 for years. It worked, but every change was slow and expensive, the hosting estate had grown into a sprawl of services nobody wanted to touch, and the front end was losing the Core Web Vitals race that increasingly decides search rankings. The business also runs a serious B2B motion (sales reps, quotes, purchase orders, credit terms, tax-exempt customers) that Magento handled through a pile of extensions and manual workarounds.</p>
-
-<p>The decision was not "Magento is bad." The decision was that the cost of standing still had exceeded the cost of moving.</p>
-
-<p>The replacement is a custom storefront: Next.js and TypeScript, PostgreSQL, Meilisearch for catalog search, HubSpot as the CRM system of record for the sales team, Authorize.net for payments, and TaxJar for sales tax. One codebase, one database, one server.</p>
-
-<h2><span class="eyebrow">Merchant fear 01 / 05</span>"Will my numbers still be right?"</h2>
-
-<p>This is the fear that stops most replatforms, and it deserves to. Pricing bugs are silent. A store that renders beautifully while quietly computing discounts wrong is worse than a slow store.</p>
-
-<p>We treated pricing as a formal contract, not a feature:</p>
-
-<p><strong>Twelve money laws.</strong> The pricing engine's guarantees are written down as twelve executable invariants: the order subtotal must equal the sum of its line totals exactly, the grand total must equal subtotal minus discount plus shipping plus tax, discounts can never exceed the subtotal or push a line below zero, every stored amount is a non-negative value with exactly two decimals, and so on. These are not comments in a wiki. They are code, and they run in four places: property-based tests, a frozen order corpus, integration tests against the real database, and a reconciliation job in production.</p>
-
-<p><strong>Integer cents, never floats.</strong> All money math happens in whole cents, parsed from strings. Discount allocation across line items uses largest-remainder apportionment, so a $10 discount spread over three lines never loses or invents a cent.</p>
-
-<p><strong>A 5,730-order replay harness.</strong> Before cutover, we extracted thousands of real historical orders and froze their financial outcomes as a baseline. Every test run rebuilds each order's cart from the order's own data and pushes it through the current pricing engine, then compares subtotal, discount, tax base, grand total, and every line total against the frozen baseline. The tolerance is zero: exact-cent string equality on 5,730 orders. The corpus is stratified on purpose: it includes every post-launch order, every order with both shipping and tax, all 2,730 discounted orders (the only ones that exercise discount apportionment), and orders up to 37 line items.</p>
-
-<p><strong>We proved the harness works by breaking the engine on purpose.</strong> A safety net you have never seen catch anything might be decorative. So we mutated the engine deliberately: shifting a discount clamp by a single cent flagged 2,728 of the 5,730 orders and named every order and field that moved. Removing one clamp, losing one leftover cent in allocation, and mis-padding a formatted amount were each injected as bugs, and each was caught by a different layer.</p>
-
-<p><strong>The contract is protected from its own developers.</strong> CI runs a tamper guard that executes the money test suite and asserts a minimum passing count, so nobody can quietly exclude a test file and stay green (that exact bypass happened once before the guard existed, which is why it exists). Any change to the pricing engine, the laws, or the frozen corpus requires an explicit human sign-off marker in the commit history, and the guard runs the base branch's own copy of itself so a pull request cannot edit the guard to approve its own changes.</p>
-
-<aside class="pull">Shifting one discount clamp by a single cent flagged 2,728 of 5,730 replayed orders, each one named.</aside>
-
-<p>Did all this ceremony ever pay off? Yes, dramatically. A data re-import once inserted a second, identical set of line items into 60,898 historical orders. No money moved and nothing looked wrong in the admin. The first law (subtotal equals the sum of line totals) flagged it because every affected order's lines suddenly summed to exactly twice the subtotal. The repair script that fixed roughly 349,000 duplicate rows was itself dry-run by default, backed up every table first, and was gated on an exact parity check before and after.</p>
-
-<h2><span class="eyebrow">Merchant fear 02 / 05</span>"Will Google forget my store exists?"</h2>
-
-<p>A replatform is a mass URL migration whether you plan it or not. We planned it.</p>
-
-<ul>
-<li><strong>11,020 exact-path redirects plus 152 pattern redirects</strong> were extracted from Magento's rewrite tables and legacy htaccess rules, and are served as permanent (301) redirects from middleware, before any caching layer can interfere. A subtle trap we hit: issuing redirects from inside a statically cached page can bake a broken redirect into the cache. Redirects must live upstream of the cache, and now they do.</li>
-<li><strong>The sitemap is generated, not maintained.</strong> It builds from live products and categories, excludes anything unreachable or disabled, and filters out any URL the middleware would redirect, so search engines are never sent somewhere that bounces.</li>
-<li><strong>Structured data everywhere it matters</strong>: Organization, Product with offers, and breadcrumb schemas emitted from typed helpers rather than hand-edited JSON.</li>
-<li><strong>Discontinued products get temporary (307) redirects</strong> to their category or successor, driven from a database field store staff can edit, because a product that comes back should get its URL back.</li>
-</ul>
-
-<p>On performance, the wins came from architecture rather than tricks. Nearly the whole shop renders as static pages regenerated in the background, so most visitors are served from cache in milliseconds. Third-party marketing scripts (tag manager, CRM chat and tracking, roughly 550KB of JavaScript) load only after the visitor's first interaction, taking them out of the critical path entirely. Today the storefront scores a perfect 100 on Performance, Accessibility, Best Practices, and SEO in desktop PageSpeed, and its Core Web Vitals field assessment (real Chrome users over 28 days) passes on every metric. A regression test suite pins each of these architectural rules in CI, because we re-broke several of them during development and got tired of rediscovering the fixes.</p>
-
-<figure>
-  <div class="chart-row">
-    <div>
-      <p class="chart-title">Mobile PageSpeed score</p>
-      <svg class="chart" viewBox="0 0 300 190" role="img" aria-label="Bar chart: mobile PageSpeed score rose from 46 on Magento 2 to 82 on Next.js">
-        <defs><clipPath id="base1"><rect x="0" y="0" width="300" height="150"/></clipPath></defs>
-        <line class="grid" x1="20" y1="20" x2="290" y2="20"/>
-        <text class="tick-lbl" x="16" y="24" text-anchor="end">100</text>
-        <g clip-path="url(#base1)">
-          <rect class="bar-before" x="55" y="90" width="64" height="64" rx="3"/>
-          <rect class="bar-after" x="175" y="43" width="64" height="111" rx="3"/>
-        </g>
-        <line class="axis" x1="20" y1="150" x2="290" y2="150"/>
-        <text class="val" x="87" y="82" text-anchor="middle">46</text>
-        <text class="val" x="207" y="35" text-anchor="middle">82</text>
-        <text class="lbl" x="87" y="170" text-anchor="middle">Magento 2</text>
-        <text class="lbl" x="207" y="170" text-anchor="middle">Next.js</text>
-      </svg>
-    </div>
-    <div>
-      <p class="chart-title">Total Blocking Time, ms (lower is better)</p>
-      <svg class="chart" viewBox="0 0 300 190" role="img" aria-label="Bar chart: Total Blocking Time fell from 2,390 milliseconds on Magento 2 to 90 milliseconds on Next.js">
-        <defs><clipPath id="base2"><rect x="0" y="0" width="300" height="150"/></clipPath></defs>
-        <line class="grid" x1="20" y1="20" x2="290" y2="20"/>
-        <text class="tick-lbl" x="16" y="24" text-anchor="end">2,400</text>
-        <g clip-path="url(#base2)">
-          <rect class="bar-before" x="55" y="21" width="64" height="133" rx="3"/>
-          <rect class="bar-after" x="175" y="145" width="64" height="9" rx="3"/>
-        </g>
-        <line class="axis" x1="20" y1="150" x2="290" y2="150"/>
-        <text class="val" x="87" y="13" text-anchor="middle">2,390</text>
-        <text class="val" x="207" y="137" text-anchor="middle">90</text>
-        <text class="lbl" x="87" y="170" text-anchor="middle">Magento 2</text>
-        <text class="lbl" x="207" y="170" text-anchor="middle">Next.js</text>
-      </svg>
-    </div>
-  </div>
-  <figcaption>Lighthouse mobile, measured on the production build before and after the migration. Outlined bars are the Magento 2 baseline; solid bars are the replacement storefront.</figcaption>
-</figure>
-
-<figure>
-  <!-- Raw img by design: this whole site is plain static HTML with no framework, so there is no next/image pipeline. -->
-  <img src="img/pagespeed.png" alt="PageSpeed Insights report: Core Web Vitals assessment passed, with LCP 0.8 seconds, INP 65 milliseconds, CLS 0, and scores of 100 for Performance, Accessibility, Best Practices, and SEO" loading="lazy" decoding="async" width="1400" height="1023">
-  <figcaption>A recent desktop PageSpeed Insights run for the storefront: the Core Web Vitals field assessment (real Chrome users, 28-day window) passes on every metric, and the lab audit scores 100 in every category.</figcaption>
-</figure>
-
-<h2><span class="eyebrow">Merchant fear 03 / 05</span>"What happens to ten years of content pages?"</h2>
-
-<p>A mature Magento store is also a content library: landing pages, buying guides, service pages, and category descriptions, accumulated over years in a WYSIWYG page builder as tangled HTML that only renders correctly inside the old theme. Copy-pasting it into a new platform degrades it. Leaving it behind throws away the long tail of pages that quietly bring in organic traffic.</p>
-
-<p>We took a third path and leaned on AI coding agents to do it at scale: 458 content routes, plus the category descriptions, were rebuilt page by page as typed React components. The pipeline captures the original production page, an agent rebuilds it as typed components, and a mechanical parity gate diffs the rebuild against the original section by section until nothing is missing, reordered, or misplaced. A human reviews each page for taste; the gate guarantees completeness, because "looks about right" is not a standard you can hold across 458 pages.</p>
-
-<p>The rebuilt pages look the same as the originals or better: same content and layout, but served as static HTML with modern image loading, consistent typography, and no page builder left to rot. And because every page is now real, typed code, a missing image or a broken component is a build failure the day it happens, not a surprise a customer finds six months later.</p>
-
-<h2><span class="eyebrow">Merchant fear 04 / 05</span>"My store is really a hub of integrations"</h2>
-
-<p>So was this one. The integrations were the hardest and most valuable part of the project.</p>
-
-<p><strong>CRM sync that cannot silently lose events.</strong> Every order, invoice, shipment, refund, and status change that must reach the CRM is written to an outbox table in the same database transaction as the business event itself. If the order saved, the sync record exists; there is no gap where the store believes in an order the CRM never heard about. A worker drains the outbox continuously (delivery is usually seconds, worst case about a minute), retries with backoff for hours if the CRM is down, collapses duplicates through idempotency keys, and pages a human only when something is genuinely stuck rather than merely retrying. Permanently failed events land in a queue an admin can replay after the root cause is fixed.</p>
-
-<figure>
-  <svg class="diagram" viewBox="0 0 680 200" role="img" aria-label="Diagram of the transactional outbox: an order commit writes an outbox row in the same database transaction, a sync worker delivers it to the CRM within about sixty seconds, retries with backoff for up to four hours, and permanently failed events go to an admin replay queue">
+<p class="evidence-note">Migration and infrastructure figures are project-owner figures. PageSpeed refers to the homepage report dated September 10, 2026. Counts, scope, and measurement limits are detailed below.</p>
+<nav class="article-nav" aria-label="In this article"><strong>In this article</strong><a href="#cost-of-change">The cost of change</a><a href="#economics">Platform economics</a><a href="#architecture">Architecture and ownership</a><a href="#migration">Content, URLs, and speed</a><a href="#quoting">Quoting and B2B operations</a><a href="#integrations">Integrations and recovery</a><a href="#testing">Testing and technical lessons</a><a href="#fit">When this approach fits</a></nav>
+<h2 id="cost-of-change">The problem was the cost of change, not Magento’s capacity.</h2>
+<p>Magento can support businesses much larger than SCW. Scale was not the reason to replace it. In this implementation, custom features required working through framework conventions, extension dependencies, and a hosting estate that had become expensive to maintain.</p>
+<p>The business needed specific capabilities: partner prices, company credit, tax exemptions, sales-assisted quotes, and connected warehouse operations. The question was whether those capabilities could be easier to change and less costly to operate in a focused application.</p>
+<p>I built around three goals:</p>
+<ul><li><strong>Make feature work more direct.</strong> Implement business behavior in the application, with shared rules for pricing, company accounts, and integrations.</li><li><strong>Reduce maintenance overhead.</strong> Retire unused services and extension dependencies instead of carrying the entire old platform forward.</li><li><strong>Give staff practical tools.</strong> Products, refunds, approvals, and customer requests should not require a developer for every routine action.</li></ul>
+<p>These are architectural and operational benefits, not a claim that every future feature will take a fixed percentage less time. I do not have a controlled before-and-after development-time study. The concrete evidence is the smaller infrastructure footprint and the business workflows delivered on top of it.</p>
+<h2 id="economics">Lower costs came from removing unnecessary parts.</h2>
+<p>My AWS review found unused services and resources provisioned for a traffic peak that never arrived. The replacement brought production infrastructure from approximately <strong>$5,400 to $280 per month</strong>, a reduction of about <strong>94.8%</strong>, rounded to 95%. That is approximately $5,120 less per month for the infrastructure scope being compared.</p>
+<figure class="cost-figure"><h3>Monthly production infrastructure</h3><div class="cost-row"><span>Before</span><div class="cost-track"><div class="cost-fill before" style="width:100%"></div></div><strong>$5,400</strong></div><div class="cost-row"><span>After</span><div class="cost-track"><div class="cost-fill" style="width:5.1852%"></div></div><strong>$280</strong></div><figcaption>Approximate project figures. Bars share a linear scale. This comparison excludes development effort and should not be treated as a total ownership-cost calculation.</figcaption></figure>
+<p>The core stack is Next.js and TypeScript, PostgreSQL, and Meilisearch. A smaller application and database setup replaced the previous hosting fleet. Cached rendering reduces repeated work, while the simpler service footprint reduces the number of systems an engineer must understand before making a change.</p>
+<p><strong>Search is a useful example.</strong> I replaced paid Klevu search with a custom Meilisearch implementation covering products, categories, content, filters, and sorting. A Klevu email quoted <strong>$499/month for a Premium upgrade</strong>. The replacement has <strong>$0 search subscription fees</strong>, with hosting included in infrastructure. The $499 was a quote, not a verified previous invoice, so I do not add it to the measured infrastructure savings.</p>
+<h2 id="architecture">Define who owns a fact before connecting the systems.</h2>
+<p>A customer may interact with the storefront while a sales rep works in HubSpot. They still need to operate on consistent business rules. I kept order and payment calculations in the commerce backend, while HubSpot provides customer and company context and the workspace for rep-authored quotes.</p>
+<figure class="architecture-figure">
+<div class="architecture-entry"><strong>Storefront · Staff admin · HubSpot cards</strong><span>Application APIs apply shared business rules</span></div>
+<div class="architecture-pair"><div><h3>Commerce / PostgreSQL</h3><p>Order, invoice, payment, refund, pricing, and credit-exposure facts.</p><p class="direction">Outbound: durable events, retries, duplicate protection.</p></div><div><h3>HubSpot / CRM</h3><p>Contacts, companies, rep-authored quotes, and mirrored commerce records.</p><p class="direction">Inbound: CRM webhooks and defined field ownership.</p></div></div>
+<div class="architecture-entry secondary"><strong>Monitoring, reconciliation, and staff replay</strong><span>Detect stalled work and give it a recovery path</span></div>
+<div class="integration-grid"><div><strong>Authorize.net</strong><span>Payments and refunds</span></div><div><strong>TaxJar</strong><span>Tax and exemptions</span></div><div><strong>ShipEdge</strong><span>Warehouse and shipments</span></div><div><strong>UPS / Meilisearch</strong><span>Rates and search</span></div></div>
+<figcaption>The key boundary is ownership. A CRM proposal and a committed order are different records with different responsibilities. The diagram shows logical roles rather than every network call.</figcaption></figure>
+<p>For example, a payment link is an entry point into checkout. It is not an authority for the amount to charge. Checkout loads source quote data and recomputes the money server-side. Company tax and credit decisions also use explicit eligibility rules, rather than trusting an arbitrary field supplied by the browser.</p>
+<h2 id="migration">Carry the history and content forward, not the old rendering machinery.</h2>
+<p>The migration carried <strong>184,785 historical orders</strong> and approximately <strong>36,000 customers</strong>. Content needed a different kind of migration: around <strong>500 pages</strong> encoded in Magento’s custom CMS format were rebuilt as typed React pages.</p>
+<p>The goal was to preserve the designs, copy, links, images, metadata, and interactive content while replacing the rendering implementation. Automated parity checks catch missing text, links, images, and headings. Section-level visual review catches what text comparison cannot: broken columns, lost emphasis, incorrect spacing, or an accordion in the wrong state.</p>
+<p>Typed pages make structural changes reviewable in code. They do not magically prove that a remote image loads or that a page looks correct. Those still require explicit checks. These pages remain developer-managed; the operational admin is not a general-purpose visual CMS.</p>
+<h3>URL preservation is a deliverable of its own.</h3>
+<p>Product, category, and CMS URL structures were preserved where applicable. The migration also retained <strong>11,172 redirect rules</strong>: 11,020 exact-path rules and 152 patterns extracted from the accumulated Magento rewrites. That count describes rules, not 11,172 distinct rebuilt pages.</p>
+<p>Redirects run before cached page rendering. Sitemaps exclude redirecting destinations, and structured data covers products and breadcrumbs. These measures protect search foundations; a PageSpeed SEO score is not evidence that every organic ranking stayed unchanged.</p>
+<h3>The latest performance report</h3>
+<div class="table-scroll"><table><caption>Homepage measurements, September 10, 2026</caption><thead><tr><th scope="col">Metric</th><th scope="col">Mobile</th><th scope="col">Desktop</th></tr></thead><tbody><tr><th scope="row">PageSpeed performance score</th><td>89 / 100</td><td>100 / 100</td></tr><tr><th scope="row">Real-user LCP</th><td>2.3 s</td><td>0.9 s</td></tr><tr><th scope="row">Real-user INP</th><td>109 ms</td><td>64 ms</td></tr><tr><th scope="row">Real-user CLS</th><td>0</td><td>0.01</td></tr><tr><th scope="row">Core Web Vitals assessment</th><td>Passed</td><td>Passed</td></tr></tbody></table></div>
+<p>The historical mobile score was 46; the earlier version of this article reported 82. The latest report is 89. These are separate runs, not a controlled benchmark. The lab score and the rolling 28-day real-user assessment measure different things. Accessibility, best practices, and SEO scored 100 on both devices in this report.</p>
+<figure><a href="https://pagespeed.web.dev/analysis/https-www-getscw-com/fttrlmfcn6?form_factor=desktop"><img src="img/pagespeed-desktop-2026-09-10.png" alt="SCW desktop PageSpeed report: performance, accessibility, best practices, and SEO all score 100; Core Web Vitals passed" width="2560" height="2080" loading="lazy" decoding="async"></a><figcaption>Desktop evidence. Click to open the report. <a href="img/pagespeed-mobile-2026-09-10.png">View the mobile capture</a> or <a href="https://pagespeed.web.dev/analysis/https-www-getscw-com/fttrlmfcn6?form_factor=mobile">open the mobile report</a>.</figcaption></figure>
+<p>The rendering strategy is deliberately straightforward: cache suitable pages, regenerate in the background, load images appropriately, and defer marketing scripts until interaction or a timeout fallback. Regression guards prevent shared layouts from quietly forcing dynamic rendering and keep tracking scripts out of initial rendering work.</p>
+<h2 id="quoting">The Quote Builder connects selling to the actual purchase.</h2>
+<p>I built a custom HubSpot app with <strong>eight CRM cards</strong>. The Quote Builder is the most substantial: five guided steps take a rep through products, addresses, payment, shipping, and finish.</p>
+<p>It goes beyond a flat product list. Reps can organize a quote into named sections, add several products with quantities, configure options, adjust unit prices, and apply line discounts. Quantity-aware availability indicators help expose backorders while the quote is being prepared. Address suggestions and live tax and shipping calculations bring the commercial details into the same workspace.</p>
+<p>A custom shipping charge can change what the customer pays while preserving the selected fulfillment service. Quote cloning creates independent line items so the copy can be edited without changing its source. Version checks reject stale saves when two reps edit the same quote.</p>
+<ul><li><strong>Card payment:</strong> generate, open, or copy a checkout link from the priced quote.</li><li><strong>Business payment:</strong> create an order for purchase orders, checks, or wire transfers, with required shipping and purchasing details checked before conversion.</li><li><strong>Proposal delivery:</strong> email a PDF attachment, route replies to the rep, generate a fresh payment link on send, and show when the quote was edited after sending.</li><li><strong>Readiness:</strong> point the rep to missing information and flag zero-priced lines without preventing intentional free accessories.</li></ul>
+<p>Website carts and the company’s floor-plan design tool can feed this quoting workflow. Other cards cover invoices, refunds, shipments, account information, and customer requests. The practical benefit is fewer system switches and less re-entry, rather than a sales-productivity percentage I have not measured.</p>
+<h3>B2B rules belong at the point of purchase.</h3>
+<p>Company purchasing includes shared credit exposure, partner pricing, and approved tax exemptions. Credit checks consider outstanding exposure plus the proposed order. Tax exemption requires the appropriate local approval and destination coverage; having a TaxJar customer identifier is not enough.</p>
+<p>Customers can submit certificates and staff can approve requests through queues. When company membership changes, inherited benefits need to be removed without accidentally deleting an unrelated manual approval. That is business logic worth modeling explicitly.</p>
+<h2 id="integrations">A useful integration includes the recovery path.</h2>
+<p>For commerce events handled by the transactional outbox, the business write and its delivery record share a database transaction. A worker delivers the event asynchronously. Failed delivery is retried with backoff, and unresolved work becomes visible for staff recovery.</p>
+<figure><svg class="diagram" viewBox="0 0 680 200" role="img" aria-label="Diagram of the transactional outbox: an order commit writes an outbox row in the same database transaction, a sync worker delivers it to the CRM asynchronously, retries with backoff, and permanently failed events go to an admin replay queue">
     <defs>
       <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="arrowhead" d="M0,0 L8,4 L0,8 z"/></marker>
       <marker id="ahs" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="arrowhead-soft" d="M0,0 L8,4 L0,8 z"/></marker>
@@ -169,63 +92,40 @@
     <text class="note" x="480" y="114" text-anchor="middle">idempotency keys</text>
 
     <line class="flow" x1="550" y1="100" x2="598" y2="100" marker-end="url(#ah)"/>
-    <text class="note" x="574" y="88" text-anchor="middle">&le; 60 s</text>
+    <text class="note" x="574" y="88" text-anchor="middle">async</text>
 
     <rect class="box" x="605" y="70" width="65" height="60" rx="6"/>
     <text class="node" x="637" y="105" text-anchor="middle">CRM</text>
 
     <path class="flow-soft" d="M 480 130 C 480 168, 280 168, 280 134" marker-end="url(#ahs)"/>
-    <text class="note" x="380" y="185" text-anchor="middle">on failure: backoff retry for up to 4 h, then an admin replay queue</text>
+    <text class="note" x="380" y="185" text-anchor="middle">on failure: retry with backoff; unresolved events go to staff replay</text>
 
     <text class="note" x="280" y="40" text-anchor="middle">if the order saved, the sync record exists</text>
     <line class="flow-soft" x1="280" y1="48" x2="280" y2="63" marker-end="url(#ahs)"/>
-  </svg>
-  <figcaption>The transactional outbox. The CRM can be down for hours without a single event being lost, and replays can never double-send thanks to idempotency keys.</figcaption>
-</figure>
-
-<p><strong>Quotes and B2B checkout.</strong> Sales reps build quotes in the CRM; customers pay against them through the storefront. The store recomputes all money server-side from the quote's source data instead of trusting whatever the checkout page displays, and a quote that has been ordered once cannot be charged twice. This code path has its own war story: an ambiguous discount field in the CRM once priced a $40,000 quote at $0.00. The fix derives the discount from the quote total itself rather than trusting the ambiguous field, and that class of bug is now structurally impossible.</p>
-
-<p><strong>Credit terms enforced by the server.</strong> Approved B2B customers can check out on purchase orders. The credit limit check sums all open exposure (unpaid invoices, in-flight orders) at order time, in the database, and refuses the order if the new total would exceed the limit. Approval status expires and must be revalidated on a schedule.</p>
-
-<p><strong>Tax handled like the liability it is.</strong> Real-time calculation across 29 nexus states, every transaction filed for reporting, refunds filed as refund transactions so the ledger reconciles. Tax-exempt customers upload their certificates through a self-service portal; staff review and approve them with the covered states, and approval cascades to every account on the same company email domain, present and future, while free-mail domains are deliberately excluded from the cascade.</p>
-
-<p><strong>Warehouse and payments.</strong> Paid orders push to the warehouse system automatically, shipment and tracking updates flow back through webhooks plus a polling backstop, and a reconciliation job runs every half hour specifically to catch the nightmare scenario of a customer charged for an order the warehouse never received (a real incident, once, caught and fixed). Payment handling covers capture, authorization-only flows, voids, refunds, saved cards, and the payment gateway's fraud review queue, where held orders are routed to staff instead of vanishing.</p>
-
-<h2><span class="eyebrow">Merchant fear 05 / 05</span>"Who runs this thing after launch?"</h2>
-
-<p>The store's staff do. The admin panel covers 18 surfaces backed by 75 internal API endpoints: products, categories, CMS content blocks, order lifecycle management, cancellations with guardrails (an order with settled money cannot be casually cancelled), full and partial and even tax-only refunds, credit terms, partner and tax-exemption approvals, and a sync observability screen where staff can see and replay any integration event. Day-to-day merchandising and operations require no developer at all.</p>
-
-<p>On the engineering side, nine scheduled jobs are monitored not just for "did it run" but for "did it run on time and finish within its expected window," errors flow to an alerting system with an acknowledgement workflow so nothing gets fired into a channel and ignored, and the deploy process is a pull request merge, never a person typing on a server.</p>
-
-<h2>What went wrong (a partial and honest list)</h2>
-
-<p>A full go-live rehearsal against a production data dump caught four bugs that would each have shipped silently: a character-encoding flag missing from the export corrupted every trademark and degree symbol (2,001 fields); a database client quirk turned every empty tier price into the literal text "NULL," which would have imported 1,618 group prices as $0.00; naive datetime parsing shifted every scheduled sale window four hours early; and a hand-rolled CSV parser mangled 57 category names. None reached production, which is the entire argument for rehearsing a migration like a fire drill instead of hoping.</p>
-
-<p>After launch, the mistakes kept teaching. The duplicated line-item incident above came from a re-import months after cutover. A caching subtlety turned uncached category pages into errors for a day until the rendering rules were pinned down in tests. The lesson we kept re-learning: every incident became an executable guard, so the same mistake cannot happen twice.</p>
-
-<h2>The economics</h2>
-
-<p>The old platform ran on a fleet: multiple application servers behind a load balancer, five Redis nodes, a dedicated search cluster, several content delivery configurations, and a database provisioned for a peak that never came. The replacement runs on one mid-size cloud server (application, search, and cache together) and one modest managed Postgres instance, with capacity to spare because almost all traffic is served from static cache. The infrastructure bill dropped to a fraction of what the old estate cost, and, just as importantly, the surface area a human has to understand shrank to something one person can hold in their head.</p>
-
-<p>The build itself was done by one engineer working with a fleet of AI coding agents under heavy adversarial review: every money-path change was independently re-reviewed, and the mutation tests above were part of proving the review process itself worked. That model, one senior engineer with strong verification infrastructure instead of a large team, is a big part of why the economics worked.</p>
-
-<h2>If you are planning a Magento exit</h2>
-
-<p>Three things mattered more than everything else combined:</p>
-
-<ol>
-<li><strong>Freeze your money behavior before you touch anything.</strong> Replay real historical orders through the new engine to exact-cent equality. If you cannot prove the new platform prices your actual orders identically, you are not migrating, you are gambling.</li>
-<li><strong>Treat URLs as inventory.</strong> Extract every rewrite Magento has accumulated over the years and serve them as permanent redirects from day one, upstream of your cache.</li>
-<li><strong>Rehearse the data migration against a real dump and audit it field by field.</strong> Every one of our four rehearsal catches would have been a silent production defect.</li>
-</ol>
-
-<p>I take on a small number of replatforming and integration engagements. If your store is weighing a Magento exit, <a href="mailto:nikashio42@gmail.com">I am happy to compare notes</a>.</p>
-
-</article>
-</main>
-<footer class="site">
-  <p><a href="/">&larr; Home</a> &middot; <a href="https://github.com/nikashio">github.com/nikashio</a></p>
-  <p class="note">static html &middot; zero javascript &middot; zero webfonts &middot; one round trip</p>
-</footer>
-</body>
-</html>
+  </svg><figcaption>Transactional delivery pattern for the CRM outbox: persist the event, deliver asynchronously, retry, and expose unresolved work for replay.</figcaption></figure>
+<p>Durability does not mean an external API can never fail. It means the application retains enough information to retry, investigate, and reconcile. Duplicate protection must cover the destination effect, not merely the act of placing a message on a queue.</p>
+<p>The implementation also respects lifecycle boundaries. A pending refund is not a completed refund. Notifications are emitted after successful processing. Warehouse updates arrive through webhooks with scheduled polling as a backstop, and shipment handling must account for both paths arriving together.</p>
+<p>Payment-attempt reconciliation runs every 30 minutes to surface discrepancies such as a charge without a completed local order. That is a specific recovery job, not a claim that every system is globally reconciled on the same schedule. Aging outbox records and scheduled jobs are monitored separately.</p>
+<h3>Make stayed useful, but critical decisions moved into code.</h3>
+<p>The audit covered <strong>462 Make scenarios</strong> and <strong>504 HubSpot workflows</strong>. An inventory is not the same as a replacement count: disabled branches and notification-only flows should not be counted as business logic migrated.</p>
+<p>Critical order and request logic moved into application endpoints and scheduled jobs. Make remains part of notification and signature workflows with Slack, ClickUp, and eSignatures. Retained integrations use familiar order numbers and compatible payloads, with data hydrated from persisted business records.</p>
+<p>One operational lesson is especially useful: creating a ClickUp task does not prove that the workflow completed. Notifications, agreement processing, and final write-backs need their own verification. A branch that cannot resolve the requester should not make an unrelated downstream action disappear silently.</p>
+<h2 id="testing">Test the behavior that would hurt the business if it changed.</h2>
+<p>The pricing regression corpus contains <strong>5,730 real orders</strong>, rounded to about 6,000 in the portfolio. The reported comparison against the committed baseline produced <strong>$0.00 drift</strong>.</p>
+<p>The scope matters. The corpus includes migrated and newer orders; it is ongoing regression protection, not a dataset consisting entirely of pre-launch acceptance tests. Replay uses fixed inputs, including stored tax and shipping, while exercising the current pricing engine. It does not independently validate live carrier rates or the tax provider.</p>
+<h3>Exact arithmetic and a reviewable baseline</h3>
+<p>The pricing design uses integer cents for arithmetic and allocates discounts without losing remainder cents. The replay compares subtotal, discount, tax base, grand total, and line totals against a committed reference. Updating that reference is an explicit operation, so an intended pricing change leaves a reviewable diff.</p>
+<p>Commerce CI runs type checks, unit tests, and real-database integration tests. A money-test guard uses the base branch’s script when available, so editing the guard in a proposed change does not automatically redefine the check that evaluates it. Repository permissions and review still matter; this is a safeguard, not an absolute guarantee.</p>
+<h3>Test different risks at the right layer.</h3>
+<ul><li><strong>Unit and API contracts:</strong> reject another customer’s saved card, changed reviewed totals, invalid credit eligibility, and malformed requests.</li><li><strong>Database integration:</strong> race two refund requests against the same invoice balance and race two retry workers for the same event.</li><li><strong>Browser behavior:</strong> exercise document uploads and the customer interactions that source inspection cannot establish.</li><li><strong>Content and rendering:</strong> detect missing content and architectural changes that undermine caching or deferment.</li></ul>
+<p>The HubSpot app inventory contains <strong>88 project test files</strong>: 47 backend, 30 CRM-card, and 11 shared or configuration test files, excluding dependency code. That is a file count, not a test-case count or coverage percentage. Its checks include quote cloning, edit conflicts, payment-link freshness, signed PDF access, and duplicate conversion.</p>
+<h2>Technical lessons that changed how I approached the system</h2>
+<p><strong>Fix the workload before buying more database capacity.</strong> A load-test investigation found concurrent product-option queries exhausting application connection pools while the database itself had spare CPU. Query fan-out can create apparent infrastructure pressure that a larger instance does not address directly.</p>
+<p><strong>Make shared state explicit.</strong> A webhook and a polling job may both observe the same missing shipment. Checking before insertion is not sufficient when those checks race. The transaction and locking strategy must protect the business identity being created.</p>
+<p><strong>Preserve migration semantics, not just values.</strong> Exports, null handling, dates, identifiers, and discount representations all need deliberate reconciliation. Rehearsals and contract checks are how silent data changes become visible before they are accepted.</p>
+<p><strong>Keep recovery operational.</strong> A retry needs a stable identity, a visible status, and a way to resolve a permanent failure. A dashboard that is green while a critical delivery job is absent is not useful monitoring.</p>
+<h2 id="fit">When a replacement like this makes sense</h2>
+<p>A custom platform brings responsibility: application maintenance, security, operations, and future development still belong to someone. It is a good candidate when the business has substantial custom workflows, a clear owner for the system, and an existing stack whose cost of change is persistently too high. A standard hosted platform may be the better fit when its built-in workflows already cover the business.</p>
+<p>For SCW, the design brought those responsibilities into a smaller, more direct system. The storefront became faster, infrastructure became cheaper, and sales and service gained tools built around their actual work.</p>
+<aside class="project-cta"><h2>What is making your next feature expensive?</h2><p>I work on commerce modernization, custom HubSpot apps, and integrations that connect sales, payments, and fulfillment. If you are weighing a replacement, start with the workflows you need to preserve and the changes your current platform makes difficult.</p><a href="mailto:nikashio42@gmail.com?subject=Commerce%20and%20HubSpot%20project">Tell me about your project</a><span>Or <a href="https://www.getscw.com/">explore the SCW storefront</a>.</span></aside>
+</article></main><footer class="site"><p><a href="/">Home</a> · <a href="https://github.com/nikashio">GitHub</a> · <a href="mailto:nikashio42@gmail.com">Email</a></p><p class="note">Static HTML · No client JavaScript · System fonts</p></footer></body></html>
